@@ -66,8 +66,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.search_rounded),
                           hintText: 'Search by title or category',
-                          border: OutlineInputBorder(),
-                          isDense: true,
+                          // use global InputDecorationTheme for color/shape
+                          contentPadding: EdgeInsets.symmetric(vertical: 10),
                         ),
                         onChanged: (value) {
                           setState(() {
@@ -118,6 +118,24 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   ),
                                 );
                               },
+                              onDuplicate: () async {
+                                final duplicated = TransactionEntity(
+                                  id: DateTime.now()
+                                      .millisecondsSinceEpoch
+                                      .toString(),
+                                  title: transaction.title,
+                                  amount: transaction.amount,
+                                  type: transaction.type,
+                                  category: transaction.category,
+                                  date: DateTime.now(),
+                                  note: transaction.note,
+                                  isRecurring: transaction.isRecurring,
+                                  recurringInterval:
+                                      transaction.recurringInterval,
+                                );
+                                await widget.controller
+                                    .addTransaction(duplicated);
+                              },
                             );
                           },
                         ),
@@ -127,7 +145,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: widget.onAddTransaction,
-            child: const Icon(Icons.add_rounded),
+            child: const Icon(Icons.add_rounded, size: 22),
           ),
         );
       },
@@ -170,26 +188,48 @@ class _TypeFilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final appColors = Theme.of(context).extension<AppColors>()!;
 
+    ChoiceChip buildChip(String label, bool selected, VoidCallback onTap) {
+      return ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => onTap(),
+        selectedColor: appColors.success.withValues(alpha: 0.18),
+        backgroundColor: appColors.surfaceAlt,
+        labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: selected ? appColors.success : appColors.textSecondary,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: BorderSide(
+            color: selected
+                ? appColors.success.withValues(alpha: 0.7)
+                : Colors.transparent,
+          ),
+        ),
+      );
+    }
+
     return Row(
       children: [
-        ChoiceChip(
-          label: const Text('All'),
-          selected: selected == null,
-          onSelected: (_) => onChanged(null),
+        Expanded(
+          child: buildChip('All', selected == null, () => onChanged(null)),
         ),
         const SizedBox(width: 8),
-        ChoiceChip(
-          label: const Text('Income'),
-          selected: selected == TransactionTypeEntity.income,
-          selectedColor: appColors.success.withValues(alpha: 0.2),
-          onSelected: (_) => onChanged(TransactionTypeEntity.income),
+        Expanded(
+          child: buildChip(
+            'Income',
+            selected == TransactionTypeEntity.income,
+            () => onChanged(TransactionTypeEntity.income),
+          ),
         ),
         const SizedBox(width: 8),
-        ChoiceChip(
-          label: const Text('Expense'),
-          selected: selected == TransactionTypeEntity.expense,
-          selectedColor: appColors.danger.withValues(alpha: 0.2),
-          onSelected: (_) => onChanged(TransactionTypeEntity.expense),
+        Expanded(
+          child: buildChip(
+            'Expense',
+            selected == TransactionTypeEntity.expense,
+            () => onChanged(TransactionTypeEntity.expense),
+          ),
         ),
       ],
     );
@@ -201,11 +241,13 @@ class _TransactionCard extends StatelessWidget {
     required this.transaction,
     required this.onDelete,
     this.onEdit,
+    this.onDuplicate,
   });
 
   final TransactionEntity transaction;
   final VoidCallback onDelete;
   final VoidCallback? onEdit;
+  final VoidCallback? onDuplicate;
 
   @override
   Widget build(BuildContext context) {
@@ -254,19 +296,53 @@ class _TransactionCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                '${isIncome ? '+' : '-'}${CurrencyUtils.format(transaction.amount.abs())}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: isIncome
-                          ? colors.success.withValues(alpha: 0.88)
-                          : colors.danger.withValues(alpha: 0.88),
-                      fontWeight: FontWeight.w700,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${isIncome ? '+' : '-'}${CurrencyUtils.format(transaction.amount.abs())}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: isIncome
+                              ? colors.success.withValues(alpha: 0.88)
+                              : colors.danger.withValues(alpha: 0.88),
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  PopupMenuButton<_TxMenuAction>(
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      size: 20,
+                      color: colors.textSecondary,
                     ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline_rounded),
-                color: colors.danger,
-                onPressed: onDelete,
+                    onSelected: (action) {
+                      switch (action) {
+                        case _TxMenuAction.edit:
+                          if (onEdit != null) onEdit!();
+                          break;
+                        case _TxMenuAction.duplicate:
+                          if (onDuplicate != null) onDuplicate!();
+                          break;
+                        case _TxMenuAction.delete:
+                          onDelete();
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _TxMenuAction.edit,
+                        child: Text('Edit'),
+                      ),
+                      PopupMenuItem(
+                        value: _TxMenuAction.duplicate,
+                        child: Text('Duplicate'),
+                      ),
+                      PopupMenuItem(
+                        value: _TxMenuAction.delete,
+                        child: Text('Delete'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
@@ -275,6 +351,8 @@ class _TransactionCard extends StatelessWidget {
     );
   }
 }
+
+enum _TxMenuAction { edit, duplicate, delete }
 
 // helper to format date + time (same as in HomeShell)
 String _formatDateTime(DateTime date) {
@@ -326,7 +404,7 @@ class _EmptyTransactionsView extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Your transaction history will appear here.',
+                  'Try changing the search or type filter, or add a new transaction.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/app_entities.dart';
 
 class TransactionFilterChips extends StatelessWidget {
@@ -14,30 +15,50 @@ class TransactionFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
+    Widget buildChip(String label, bool selected, VoidCallback onTap) {
+      final bg = selected
+          ? appColors.success.withValues(alpha: 0.18)
+          : appColors.surfaceAlt;
+      final fg = selected ? appColors.success : appColors.textSecondary;
+
+      return Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: fg,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Row(
       children: [
-        Expanded(
-          child: ChoiceChip(
-            label: const Text('All'),
-            selected: selectedType == null,
-            onSelected: (_) => onChanged(null),
-          ),
+        buildChip('All', selectedType == null, () => onChanged(null)),
+        const SizedBox(width: 8),
+        buildChip(
+          'Income',
+          selectedType == TransactionTypeEntity.income,
+          () => onChanged(TransactionTypeEntity.income),
         ),
         const SizedBox(width: 8),
-        Expanded(
-          child: ChoiceChip(
-            label: const Text('Income'),
-            selected: selectedType == TransactionTypeEntity.income,
-            onSelected: (_) => onChanged(TransactionTypeEntity.income),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ChoiceChip(
-            label: const Text('Expense'),
-            selected: selectedType == TransactionTypeEntity.expense,
-            onSelected: (_) => onChanged(TransactionTypeEntity.expense),
-          ),
+        buildChip(
+          'Expense',
+          selectedType == TransactionTypeEntity.expense,
+          () => onChanged(TransactionTypeEntity.expense),
         ),
       ],
     );
@@ -57,8 +78,9 @@ class TransactionCardItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
     final isIncome = transaction.type == TransactionTypeEntity.income;
-    final amountColor = isIncome ? Colors.green : Colors.red;
+    final amountColor = isIncome ? appColors.success : appColors.danger;
     final amountPrefix = isIncome ? '+' : '-';
 
     return Card(
@@ -72,17 +94,21 @@ class TransactionCardItem extends StatelessWidget {
           backgroundColor: amountColor.withValues(alpha: 0.12),
           child: Icon(
             isIncome
-                ? Icons.arrow_downward_rounded
-                : Icons.arrow_upward_rounded,
+                ? Icons.south_west_rounded
+                : Icons.north_east_rounded,
             color: amountColor,
           ),
         ),
-        title: Text(transaction.title),
+        title: Text(
+          transaction.title,
+          style: theme.textTheme.titleMedium,
+        ),
         subtitle: Text(
           '${transaction.category} • ${_formatDate(transaction.date)}',
+          style: theme.textTheme.bodyMedium,
         ),
         trailing: Text(
-          '$amountPrefix\$${transaction.amount.toStringAsFixed(2)}',
+          '$amountPrefix${transaction.amount.toStringAsFixed(2)}',
           style: theme.textTheme.titleMedium?.copyWith(
             color: amountColor,
             fontWeight: FontWeight.w700,
@@ -113,6 +139,7 @@ class TransactionEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appColors = theme.extension<AppColors>()!;
 
     return Center(
       child: Padding(
@@ -123,7 +150,7 @@ class TransactionEmptyState extends StatelessWidget {
             Icon(
               Icons.receipt_long_rounded,
               size: 56,
-              color: theme.colorScheme.primary,
+              color: appColors.success,
             ),
             const SizedBox(height: 12),
             Text(

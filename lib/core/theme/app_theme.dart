@@ -26,11 +26,11 @@ class AppTheme {
     const success = okxGreen;
     const danger = Color(0xFFE53935);
     const warning = Color(0xFFF59E0B);
-    const info = Color(0xFF2F80ED);
+    const info = Color(0xFF00B894);
 
     final colorScheme = const ColorScheme.light(
       primary: okxGreen,
-      secondary: info,
+      secondary: okxGreenBright,
       surface: surface,
       error: danger,
       onPrimary: black,
@@ -103,12 +103,10 @@ class AppTheme {
         ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: okxGreen,
+        backgroundColor: Color(0xFF00C853), // or okxGreen if you prefer
         foregroundColor: black,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(30)),
-        ),
+        shape: StadiumBorder(), // pill shape like your chips
       ),
       navigationBarTheme: const NavigationBarThemeData(
         backgroundColor: surface,
@@ -187,11 +185,11 @@ class AppTheme {
     const success = okxGreen;
     const danger = Color(0xFFFF4D4D);
     const warning = Color(0xFFFF9F1A);
-    const info = Color(0xFF2F80ED);
+    const info = Color(0xFF00B894);
 
     final colorScheme = const ColorScheme.dark(
       primary: okxGreen,
-      secondary: info,
+      secondary: okxGreenBright,
       surface: surface,
       error: danger,
       onPrimary: black,
@@ -263,12 +261,10 @@ class AppTheme {
         ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: okxGreen,
+        backgroundColor: Color(0xFF00C853), // or okxGreen if you prefer
         foregroundColor: black,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(30)),
-        ),
+        shape: StadiumBorder(), // pill shape like your chips
       ),
       navigationBarTheme: const NavigationBarThemeData(
         backgroundColor: surface,
