@@ -20,6 +20,9 @@ dependencies:
   flutter_local_notifications: ^17.2.1
   pdf: ^3.10.8
   share_plus: ^10.0.2
+  animate_do: ^3.3.4       # For those liquid OKX-style animations
+  google_fonts: ^6.2.1     # To get professional typography without manual assets
+  font_awesome_flutter: ^10.7.0 # For better "Exchange" icons
 
 dev_dependencies:
   flutter_test:
