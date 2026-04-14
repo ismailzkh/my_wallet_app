@@ -16,21 +16,18 @@ class ReportsScreen extends StatefulWidget {
   final TransactionsController controller;
 
   @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
+  State<ReportsScreen> createState() => ReportsScreenState();
 }
 
-enum _ReportColorType {
-  income,
-  expense,
-}
+enum ReportColorType { income, expense }
 
-enum _ReportChartType {
-  bar,
-  line,
-}
+enum ReportChartType { bar, line }
 
-class _ReportsScreenState extends State<ReportsScreen> {
-  _ReportChartType _chartType = _ReportChartType.bar;
+enum ReportRange { thisMonth, lastMonth, thisYear }
+
+class ReportsScreenState extends State<ReportsScreen> {
+  ReportChartType chartType = ReportChartType.bar;
+  ReportRange range = ReportRange.thisMonth;
 
   @override
   Widget build(BuildContext context) {
@@ -42,13 +39,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
         final expense = widget.controller.totalExpense;
         final net = widget.controller.totalBalance;
 
-        final expenseByCategory = <String, double>{};
-        final incomeByCategory = <String, double>{};
+        final Map<String, double> expenseByCategory = {};
+        final Map<String, double> incomeByCategory = {};
 
         for (final t in transactions) {
           final category =
               t.category.trim().isEmpty ? 'General' : t.category.trim();
-
           if (t.type == TransactionTypeEntity.expense) {
             expenseByCategory[category] =
                 (expenseByCategory[category] ?? 0) + t.amount;
@@ -60,7 +56,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
         final sortedExpenseCategories = expenseByCategory.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
-
         final sortedIncomeCategories = incomeByCategory.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -73,7 +68,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
           body: SafeArea(
             child: transactions.isEmpty
-                ? const _EmptyReportsView()
+                ? const EmptyReportsView()
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
@@ -81,52 +76,79 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         'Summary',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          _RangeChip(
+                            label: 'This month',
+                            selected: range == ReportRange.thisMonth,
+                            onTap: () => setState(() {
+                              range = ReportRange.thisMonth;
+                            }),
+                          ),
+                          _RangeChip(
+                            label: 'Last month',
+                            selected: range == ReportRange.lastMonth,
+                            onTap: () => setState(() {
+                              range = ReportRange.lastMonth;
+                            }),
+                          ),
+                          _RangeChip(
+                            label: 'This year',
+                            selected: range == ReportRange.thisYear,
+                            onTap: () => setState(() {
+                              range = ReportRange.thisYear;
+                            }),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
-                            child: _SummaryCard(
+                            child: SummaryCard(
                               title: 'Income',
                               value: income,
-                              colorType: _ReportColorType.income,
+                              colorType: ReportColorType.income,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: _SummaryCard(
+                            child: SummaryCard(
                               title: 'Expense',
                               value: expense,
-                              colorType: _ReportColorType.expense,
+                              colorType: ReportColorType.expense,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _SummaryCard(
+                      SummaryCard(
                         title: 'Net Balance',
                         value: net,
                         colorType: net >= 0
-                            ? _ReportColorType.income
-                            : _ReportColorType.expense,
+                            ? ReportColorType.income
+                            : ReportColorType.expense,
                       ),
                       const SizedBox(height: 12),
-                      _ReportChartSection(
+                      ReportChartSection(
                         transactions: transactions,
-                        chartType: _chartType,
+                        chartType: chartType,
                         onChartTypeChanged: (value) {
                           setState(() {
-                            _chartType = value;
+                            chartType = value;
                           });
                         },
                       ),
                       const SizedBox(height: 20),
-                      _CategoryPieSection(
+                      CategoryPieSection(
                         title: 'Expense categories analysis',
                         data: expenseByCategory,
                         type: TransactionTypeEntity.expense,
                       ),
                       const SizedBox(height: 20),
-                      _CategoryPieSection(
+                      CategoryPieSection(
                         title: 'Income categories analysis',
                         data: incomeByCategory,
                         type: TransactionTypeEntity.income,
@@ -153,12 +175,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                       const SizedBox(height: 12),
                       if (sortedExpenseCategories.isEmpty)
-                        const _InfoCard(
+                        const InfoCard(
                           text: 'No expense transactions yet.',
                         )
                       else
                         ...sortedExpenseCategories.take(5).map(
-                              (entry) => _CategoryTile(
+                              (entry) => CategoryTile(
                                 title: entry.key,
                                 amount: entry.value,
                                 total: expense,
@@ -172,12 +194,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                       const SizedBox(height: 12),
                       if (sortedIncomeCategories.isEmpty)
-                        const _InfoCard(
+                        const InfoCard(
                           text: 'No income transactions yet.',
                         )
                       else
                         ...sortedIncomeCategories.take(5).map(
-                              (entry) => _CategoryTile(
+                              (entry) => CategoryTile(
                                 title: entry.key,
                                 amount: entry.value,
                                 total: income,
@@ -191,7 +213,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                       const SizedBox(height: 12),
                       ...recentTransactions.take(5).map(
-                            (t) => _RecentTransactionTile(transaction: t),
+                            (t) => RecentTransactionTile(transaction: t),
                           ),
                     ],
                   ),
@@ -202,21 +224,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
+class SummaryCard extends StatelessWidget {
+  const SummaryCard({
     required this.title,
     required this.value,
     required this.colorType,
+    super.key,
   });
 
   final String title;
   final double value;
-  final _ReportColorType colorType;
+  final ReportColorType colorType;
 
   @override
   Widget build(BuildContext context) {
     final appColors = Theme.of(context).extension<AppColors>()!;
-    final color = colorType == _ReportColorType.income
+    final color = colorType == ReportColorType.income
         ? appColors.success
         : appColors.danger;
 
@@ -242,12 +265,13 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({
+class CategoryTile extends StatelessWidget {
+  const CategoryTile({
     required this.title,
     required this.amount,
     required this.total,
     required this.type,
+    super.key,
   });
 
   final String title;
@@ -261,8 +285,7 @@ class _CategoryTile extends StatelessWidget {
     final color = type == TransactionTypeEntity.income
         ? appColors.success
         : appColors.danger;
-
-    final percent = total <= 0 ? 0.0 : (amount / total) * 100;
+    final percent = total == 0 ? 0.0 : (amount / total * 100);
     final progress = (percent / 100).clamp(0.0, 1.0);
 
     return Padding(
@@ -278,19 +301,21 @@ class _CategoryTile extends StatelessWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        _CategoryIcon(title: title, type: type),
+                        CategoryIcon(title: title, type: type),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(title)),
+                        Expanded(
+                          child: Text(title),
+                        ),
                       ],
                     ),
                   ),
                   Text(
-  CurrencyUtils.format(amount.abs()),
-  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        color: color,
-        fontWeight: FontWeight.w700,
-      ),
-),
+                    CurrencyUtils.format(amount.abs()),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -319,9 +344,10 @@ class _CategoryTile extends StatelessWidget {
   }
 }
 
-class _RecentTransactionTile extends StatelessWidget {
-  const _RecentTransactionTile({
+class RecentTransactionTile extends StatelessWidget {
+  const RecentTransactionTile({
     required this.transaction,
+    super.key,
   });
 
   final TransactionEntity transaction;
@@ -342,7 +368,7 @@ class _RecentTransactionTile extends StatelessWidget {
           ),
           title: Text(transaction.title),
           subtitle: Text(
-            '${transaction.category} • ${_formatDate(transaction.date)}',
+            '${transaction.category}  ${formatDate(transaction.date)}',
           ),
           trailing: Text(
             CurrencyUtils.format(transaction.amount),
@@ -355,40 +381,40 @@ class _RecentTransactionTile extends StatelessWidget {
       ),
     );
   }
-
-  String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final year = date.year.toString();
-    return '$day/$month/$year';
-  }
 }
 
-class _ReportChartSection extends StatelessWidget {
-  const _ReportChartSection({
+String formatDate(DateTime date) {
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final year = date.year.toString();
+  return '$day/$month/$year';
+}
+
+class ReportChartSection extends StatelessWidget {
+  const ReportChartSection({
     required this.transactions,
     required this.chartType,
     required this.onChartTypeChanged,
+    super.key,
   });
 
   final List<TransactionEntity> transactions;
-  final _ReportChartType chartType;
-  final ValueChanged<_ReportChartType> onChartTypeChanged;
+  final ReportChartType chartType;
+  final ValueChanged<ReportChartType> onChartTypeChanged;
 
   @override
   Widget build(BuildContext context) {
     final appColors = Theme.of(context).extension<AppColors>()!;
     final colorScheme = Theme.of(context).colorScheme;
+
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-
     final List<double> dailyNet = List.generate(daysInMonth, (_) => 0);
 
     for (final t in transactions) {
       if (t.date.isBefore(startOfMonth)) continue;
       if (t.date.isAfter(now)) continue;
-
       final dayIndex = t.date.day - 1;
       if (dayIndex < 0 || dayIndex >= daysInMonth) continue;
 
@@ -400,9 +426,7 @@ class _ReportChartSection extends StatelessWidget {
     }
 
     final hasData = dailyNet.any((v) => v != 0);
-    if (!hasData) {
-      return const SizedBox.shrink();
-    }
+    if (!hasData) return const SizedBox.shrink();
 
     return Card(
       child: Padding(
@@ -429,7 +453,7 @@ class _ReportChartSection extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(4),
-                child: SegmentedButton<_ReportChartType>(
+                child: SegmentedButton<ReportChartType>(
                   style: ButtonStyle(
                     backgroundColor:
                         WidgetStateProperty.resolveWith<Color?>((states) {
@@ -448,10 +472,7 @@ class _ReportChartSection extends StatelessWidget {
                     side: const WidgetStatePropertyAll(BorderSide.none),
                     elevation: const WidgetStatePropertyAll(0),
                     padding: const WidgetStatePropertyAll(
-                      EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
+                      EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                     shape: WidgetStatePropertyAll(
                       RoundedRectangleBorder(
@@ -460,21 +481,20 @@ class _ReportChartSection extends StatelessWidget {
                     ),
                   ),
                   segments: const [
-                    ButtonSegment<_ReportChartType>(
-                      value: _ReportChartType.bar,
+                    ButtonSegment<ReportChartType>(
+                      value: ReportChartType.bar,
                       label: Text('Bar'),
                       icon: Icon(Icons.bar_chart_rounded),
                     ),
-                    ButtonSegment<_ReportChartType>(
-                      value: _ReportChartType.line,
+                    ButtonSegment<ReportChartType>(
+                      value: ReportChartType.line,
                       label: Text('Line'),
                       icon: Icon(Icons.show_chart_rounded),
                     ),
                   ],
                   selected: {chartType},
-                  onSelectionChanged: (values) {
-                    onChartTypeChanged(values.first);
-                  },
+                  onSelectionChanged: (values) =>
+                      onChartTypeChanged(values.first),
                   showSelectedIcon: false,
                 ),
               ),
@@ -483,8 +503,8 @@ class _ReportChartSection extends StatelessWidget {
             SizedBox(
               height: 240,
               child: switch (chartType) {
-                _ReportChartType.bar => SimpleNetBarChart(dailyNet: dailyNet),
-                _ReportChartType.line => SimpleNetLineChart(dailyNet: dailyNet),
+                ReportChartType.bar => SimpleNetBarChart(dailyNet: dailyNet),
+                ReportChartType.line => SimpleNetLineChart(dailyNet: dailyNet),
               },
             ),
           ],
@@ -518,15 +538,15 @@ class SimpleNetLineChart extends StatelessWidget {
       maxY += 1;
     }
 
-    final spots = <FlSpot>[];
-    for (int i = 0; i < daysInMonth; i++) {
-      spots.add(FlSpot(i.toDouble(), dailyNet[i]));
-    }
-
     final padding = (maxY - minY).abs() * 0.2;
     final minAxis = minY - padding;
     final maxAxis = maxY + padding;
     final interval = (maxAxis - minAxis) / 2;
+
+    final List<FlSpot> spots = [];
+    for (int i = 0; i < daysInMonth; i++) {
+      spots.add(FlSpot(i.toDouble(), dailyNet[i]));
+    }
 
     return LineChart(
       LineChartData(
@@ -579,15 +599,12 @@ class SimpleNetLineChart extends StatelessWidget {
               interval: 1,
               getTitlesWidget: (value, meta) {
                 final day = value.toInt() + 1;
-
-                if (day < 1 || day > daysInMonth) {
+                if (day <= 1 || day >= daysInMonth) {
                   return const SizedBox.shrink();
                 }
-
                 if (!ChartUtils.showDayLabel(day, daysInMonth)) {
                   return const SizedBox.shrink();
                 }
-
                 return SideTitleWidget(
                   axisSide: meta.axisSide,
                   child: Text(
@@ -609,7 +626,7 @@ class SimpleNetLineChart extends StatelessWidget {
             color: appColors.success,
             barWidth: 3,
             isStrokeCapRound: true,
-            dotData: FlDotData(show: false),
+            dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(show: false),
           ),
         ],
@@ -677,7 +694,6 @@ class SimpleNetBarChart extends StatelessWidget {
               interval: interval,
               getTitlesWidget: (value, meta) {
                 final label = ChartUtils.formatMoneyAxis(value);
-
                 return Text(
                   label,
                   style: TextStyle(
@@ -700,15 +716,12 @@ class SimpleNetBarChart extends StatelessWidget {
               interval: 1,
               getTitlesWidget: (value, meta) {
                 final day = value.toInt() + 1;
-
-                if (day < 1 || day > daysInMonth) {
+                if (day <= 1 || day >= daysInMonth) {
                   return const SizedBox.shrink();
                 }
-
                 if (!ChartUtils.showDayLabel(day, daysInMonth)) {
                   return const SizedBox.shrink();
                 }
-
                 return Text(
                   day.toString(),
                   style: TextStyle(
@@ -720,31 +733,35 @@ class SimpleNetBarChart extends StatelessWidget {
             ),
           ),
         ),
-        barGroups: List.generate(daysInMonth, (index) {
-          final value = dailyNet[index];
-          final isPositive = value >= 0;
-          return BarChartGroupData(
-            x: index,
-            barRods: [
-              BarChartRodData(
-                toY: value,
-                width: 8,
-                color: isPositive ? appColors.success : appColors.danger,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ],
-          );
-        }),
+        barGroups: List.generate(
+          daysInMonth,
+          (index) {
+            final value = dailyNet[index];
+            final isPositive = value >= 0;
+            return BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: value,
+                  width: 8,
+                  color: isPositive ? appColors.success : appColors.danger,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 }
 
-class _CategoryPieSection extends StatelessWidget {
-  const _CategoryPieSection({
+class CategoryPieSection extends StatelessWidget {
+  const CategoryPieSection({
     required this.title,
     required this.data,
     required this.type,
+    super.key,
   });
 
   final String title;
@@ -756,7 +773,7 @@ class _CategoryPieSection extends StatelessWidget {
     final appColors = Theme.of(context).extension<AppColors>()!;
 
     if (data.isEmpty) {
-      return _InfoCard(
+      return InfoCard(
         text: type == TransactionTypeEntity.expense
             ? 'No expense category data yet.'
             : 'No income category data yet.',
@@ -768,18 +785,27 @@ class _CategoryPieSection extends StatelessWidget {
 
     final total = entries.fold<double>(0, (sum, e) => sum + e.value);
 
-    final colors = <Color>[
-      type == TransactionTypeEntity.expense
-          ? appColors.danger
-          : appColors.success,
-      Colors.blue,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.amber,
-      Colors.indigo,
-      Colors.pink,
-    ];
+final isExpense = type == TransactionTypeEntity.expense;
+
+// Colors ordered from strongest to faintest.
+// Index 0 -> most important category, last -> less important.
+final colors = <Color>[
+  if (isExpense) ...[
+    appColors.danger.withValues(alpha: 0.65),
+    appColors.danger.withValues(alpha: 0.55),
+    appColors.danger.withValues(alpha: 0.45),
+    appColors.danger.withValues(alpha: 0.35),
+    appColors.danger.withValues(alpha: 0.28),
+    appColors.danger.withValues(alpha: 0.22),
+  ] else ...[
+    appColors.success.withValues(alpha: 0.55),
+    appColors.success.withValues(alpha: 0.45),
+    appColors.success.withValues(alpha: 0.35),
+    appColors.success.withValues(alpha: 0.25),
+    appColors.success.withValues(alpha: 0.18),
+    appColors.success.withValues(alpha: 0.12),
+  ],
+];
 
     return Card(
       child: Padding(
@@ -798,67 +824,70 @@ class _CategoryPieSection extends StatelessWidget {
                 PieChartData(
                   sectionsSpace: 3,
                   centerSpaceRadius: 42,
-                  sections: List.generate(entries.length, (index) {
-                    final entry = entries[index];
-                    final percent =
-                        total <= 0 ? 0.0 : (entry.value / total) * 100;
-
-                    return PieChartSectionData(
-                      value: entry.value,
-                      color: colors[index % colors.length],
-                      radius: 58,
-                      title: '${percent.toStringAsFixed(0)}%',
-                      titleStyle: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    );
-                  }),
+                  sections: List.generate(
+                    entries.length,
+                    (index) {
+                      final entry = entries[index];
+                      final percent =
+                          total == 0 ? 0.0 : (entry.value / total * 100);
+                      return PieChartSectionData(
+                        value: entry.value,
+                        color: colors[index % colors.length],
+                        radius: 58,
+                        title: percent.toStringAsFixed(0),
+                        titleStyle: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            ...entries.take(5).toList().asMap().entries.map((item) {
-              final index = item.key;
-              final entry = item.value;
-              final percent = total <= 0 ? 0.0 : (entry.value / total) * 100;
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: colors[index % colors.length],
-                        shape: BoxShape.circle,
+            ...entries.take(5).toList().asMap().entries.map(
+              (item) {
+                final index = item.key;
+                final entry = item.value;
+                final percent = total == 0 ? 0.0 : (entry.value / total * 100);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: colors[index % colors.length],
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        entry.key,
-                        overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          entry.key,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      '${percent.toStringAsFixed(1)}%',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-  CurrencyUtils.format(entry.value.abs()),
-  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-      ),
-),
-                  ],
-                ),
-              );
-            }),
+                      const SizedBox(width: 10),
+                      Text(
+                        percent.toStringAsFixed(1),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        CurrencyUtils.format(entry.value.abs()),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -866,10 +895,11 @@ class _CategoryPieSection extends StatelessWidget {
   }
 }
 
-class _CategoryIcon extends StatelessWidget {
-  const _CategoryIcon({
+class CategoryIcon extends StatelessWidget {
+  const CategoryIcon({
     required this.title,
     required this.type,
+    super.key,
   });
 
   final String title;
@@ -890,244 +920,204 @@ class _CategoryIcon extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: Icon(
-        _iconForCategory(title),
+        iconForCategory(title),
         size: 18,
         color: color,
       ),
     );
   }
-
-  IconData _iconForCategory(String category) {
-    final c = category.trim().toLowerCase();
-
-    if (c.contains('food') ||
-        c.contains('restaurant') ||
-        c.contains('meal') ||
-        c.contains('lunch') ||
-        c.contains('dinner') ||
-        c.contains('breakfast') ||
-        c.contains('grocery') ||
-        c.contains('groceries') ||
-        c.contains('supermarket')) {
-      return Icons.restaurant_rounded;
-    }
-
-    if (c.contains('coffee') ||
-        c.contains('cafe') ||
-        c.contains('tea') ||
-        c.contains('drink')) {
-      return Icons.local_cafe_rounded;
-    }
-
-    if (c.contains('car') ||
-        c.contains('transport') ||
-        c.contains('taxi') ||
-        c.contains('uber') ||
-        c.contains('bus') ||
-        c.contains('fuel') ||
-        c.contains('gas') ||
-        c.contains('petrol')) {
-      return Icons.directions_car_rounded;
-    }
-
-    if (c.contains('train') || c.contains('metro') || c.contains('subway')) {
-      return Icons.train_rounded;
-    }
-
-    if (c.contains('bike') || c.contains('bicycle')) {
-      return Icons.pedal_bike_rounded;
-    }
-
-    if (c.contains('flight') || c.contains('air') || c.contains('plane')) {
-      return Icons.flight_rounded;
-    }
-
-    if (c.contains('travel') ||
-        c.contains('trip') ||
-        c.contains('vacation') ||
-        c.contains('holiday')) {
-      return Icons.luggage_rounded;
-    }
-
-    if (c.contains('hotel') || c.contains('stay')) {
-      return Icons.hotel_rounded;
-    }
-
-    if (c.contains('shopping') ||
-        c.contains('shop') ||
-        c.contains('clothes') ||
-        c.contains('clothing') ||
-        c.contains('market') ||
-        c.contains('mall')) {
-      return Icons.shopping_bag_rounded;
-    }
-
-    if (c.contains('beauty') ||
-        c.contains('cosmetic') ||
-        c.contains('makeup') ||
-        c.contains('skincare') ||
-        c.contains('salon') ||
-        c.contains('barber')) {
-      return Icons.face_retouching_natural_rounded;
-    }
-
-    if (c.contains('home') ||
-        c.contains('rent') ||
-        c.contains('house') ||
-        c.contains('apartment')) {
-      return Icons.home_rounded;
-    }
-
-    if (c.contains('bill') ||
-        c.contains('electric') ||
-        c.contains('electricity') ||
-        c.contains('water') ||
-        c.contains('internet') ||
-        c.contains('wifi') ||
-        c.contains('utility') ||
-        c.contains('utilities')) {
-      return Icons.receipt_long_rounded;
-    }
-
-    if (c.contains('phone') ||
-        c.contains('mobile') ||
-        c.contains('call') ||
-        c.contains('sim')) {
-      return Icons.smartphone_rounded;
-    }
-
-    if (c.contains('health') ||
-        c.contains('doctor') ||
-        c.contains('hospital') ||
-        c.contains('medicine') ||
-        c.contains('medical') ||
-        c.contains('clinic')) {
-      return Icons.local_hospital_rounded;
-    }
-
-    if (c.contains('pharmacy') || c.contains('drug')) {
-      return Icons.medication_rounded;
-    }
-
-    if (c.contains('gym') ||
-        c.contains('fitness') ||
-        c.contains('workout') ||
-        c.contains('sport') ||
-        c.contains('sports')) {
-      return Icons.fitness_center_rounded;
-    }
-
-    if (c.contains('pet') ||
-        c.contains('dog') ||
-        c.contains('cat') ||
-        c.contains('animal') ||
-        c.contains('vet')) {
-      return Icons.pets_rounded;
-    }
-
-    if (c.contains('baby') || c.contains('kids') || c.contains('child')) {
-      return Icons.child_friendly_rounded;
-    }
-
-    if (c.contains('education') ||
-        c.contains('school') ||
-        c.contains('book') ||
-        c.contains('course') ||
-        c.contains('university') ||
-        c.contains('study')) {
-      return Icons.school_rounded;
-    }
-
-    if (c.contains('movie') || c.contains('cinema') || c.contains('film')) {
-      return Icons.movie_rounded;
-    }
-
-    if (c.contains('music') || c.contains('song') || c.contains('spotify')) {
-      return Icons.music_note_rounded;
-    }
-
-    if (c.contains('game') || c.contains('gaming')) {
-      return Icons.sports_esports_rounded;
-    }
-
-    if (c.contains('entertainment') || c.contains('fun')) {
-      return Icons.celebration_rounded;
-    }
-
-    if (c.contains('gift') || c.contains('bonus') || c.contains('present')) {
-      return Icons.card_giftcard_rounded;
-    }
-
-    if (c.contains('salary') ||
-        c.contains('income') ||
-        c.contains('job') ||
-        c.contains('work') ||
-        c.contains('wage')) {
-      return Icons.account_balance_wallet_rounded;
-    }
-
-    if (c.contains('freelance') ||
-        c.contains('business') ||
-        c.contains('project')) {
-      return Icons.work_rounded;
-    }
-
-    if (c.contains('bank') ||
-        c.contains('transfer') ||
-        c.contains('card') ||
-        c.contains('payment')) {
-      return Icons.credit_card_rounded;
-    }
-
-    if (c.contains('saving') ||
-        c.contains('savings') ||
-        c.contains('deposit')) {
-      return Icons.savings_rounded;
-    }
-
-    if (c.contains('investment') ||
-        c.contains('stock') ||
-        c.contains('crypto')) {
-      return Icons.trending_up_rounded;
-    }
-
-    if (c.contains('tax')) {
-      return Icons.account_balance_rounded;
-    }
-
-    if (c.contains('charity') || c.contains('donation')) {
-      return Icons.volunteer_activism_rounded;
-    }
-
-    if (c.contains('repair') ||
-        c.contains('maintenance') ||
-        c.contains('tool')) {
-      return Icons.build_rounded;
-    }
-
-    if (c.contains('office') ||
-        c.contains('stationery') ||
-        c.contains('supplies')) {
-      return Icons.inventory_2_rounded;
-    }
-
-    if (c.contains('subscription') ||
-        c.contains('netflix') ||
-        c.contains('youtube')) {
-      return Icons.subscriptions_rounded;
-    }
-
-    if (c.contains('security') || c.contains('insurance')) {
-      return Icons.shield_rounded;
-    }
-
-    return Icons.category_rounded;
-  }
 }
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({
+IconData iconForCategory(String category) {
+  final c = category.trim().toLowerCase();
+
+  if (c.contains('food') ||
+      c.contains('restaurant') ||
+      c.contains('meal') ||
+      c.contains('lunch') ||
+      c.contains('dinner') ||
+      c.contains('breakfast') ||
+      c.contains('grocery') ||
+      c.contains('groceries') ||
+      c.contains('supermarket')) {
+    return Icons.restaurant_rounded;
+  }
+  if (c.contains('coffee') ||
+      c.contains('cafe') ||
+      c.contains('tea') ||
+      c.contains('drink')) {
+    return Icons.local_cafe_rounded;
+  }
+  if (c.contains('car') ||
+      c.contains('transport') ||
+      c.contains('taxi') ||
+      c.contains('uber') ||
+      c.contains('bus') ||
+      c.contains('fuel') ||
+      c.contains('gas') ||
+      c.contains('petrol')) {
+    return Icons.directions_car_rounded;
+  }
+  if (c.contains('train') || c.contains('metro') || c.contains('subway')) {
+    return Icons.train_rounded;
+  }
+  if (c.contains('bike') || c.contains('bicycle')) {
+    return Icons.pedal_bike_rounded;
+  }
+  if (c.contains('flight') || c.contains('air') || c.contains('plane')) {
+    return Icons.flight_rounded;
+  }
+  if (c.contains('travel') ||
+      c.contains('trip') ||
+      c.contains('vacation') ||
+      c.contains('holiday')) {
+    return Icons.luggage_rounded;
+  }
+  if (c.contains('hotel') || c.contains('stay')) {
+    return Icons.hotel_rounded;
+  }
+  if (c.contains('shopping') ||
+      c.contains('shop') ||
+      c.contains('clothes') ||
+      c.contains('clothing') ||
+      c.contains('market') ||
+      c.contains('mall')) {
+    return Icons.shopping_bag_rounded;
+  }
+  if (c.contains('beauty') ||
+      c.contains('cosmetic') ||
+      c.contains('makeup') ||
+      c.contains('skincare') ||
+      c.contains('salon') ||
+      c.contains('barber')) {
+    return Icons.face_retouching_natural_rounded;
+  }
+  if (c.contains('home') ||
+      c.contains('rent') ||
+      c.contains('house') ||
+      c.contains('apartment')) {
+    return Icons.home_rounded;
+  }
+  if (c.contains('bill') ||
+      c.contains('electric') ||
+      c.contains('electricity') ||
+      c.contains('water') ||
+      c.contains('internet') ||
+      c.contains('wifi') ||
+      c.contains('utility') ||
+      c.contains('utilities')) {
+    return Icons.receipt_long_rounded;
+  }
+  if (c.contains('phone') ||
+      c.contains('mobile') ||
+      c.contains('call') ||
+      c.contains('sim')) {
+    return Icons.smartphone_rounded;
+  }
+  if (c.contains('health') ||
+      c.contains('doctor') ||
+      c.contains('hospital') ||
+      c.contains('medicine') ||
+      c.contains('medical') ||
+      c.contains('clinic')) {
+    return Icons.local_hospital_rounded;
+  }
+  if (c.contains('pharmacy') || c.contains('drug')) {
+    return Icons.medication_rounded;
+  }
+  if (c.contains('gym') ||
+      c.contains('fitness') ||
+      c.contains('workout') ||
+      c.contains('sport') ||
+      c.contains('sports')) {
+    return Icons.fitness_center_rounded;
+  }
+  if (c.contains('pet') ||
+      c.contains('dog') ||
+      c.contains('cat') ||
+      c.contains('animal') ||
+      c.contains('vet')) {
+    return Icons.pets_rounded;
+  }
+  if (c.contains('baby') || c.contains('kids') || c.contains('child')) {
+    return Icons.child_friendly_rounded;
+  }
+  if (c.contains('education') ||
+      c.contains('school') ||
+      c.contains('book') ||
+      c.contains('course') ||
+      c.contains('university') ||
+      c.contains('study')) {
+    return Icons.school_rounded;
+  }
+  if (c.contains('movie') || c.contains('cinema') || c.contains('film')) {
+    return Icons.movie_rounded;
+  }
+  if (c.contains('music') || c.contains('song') || c.contains('spotify')) {
+    return Icons.music_note_rounded;
+  }
+  if (c.contains('game') || c.contains('gaming')) {
+    return Icons.sports_esports_rounded;
+  }
+  if (c.contains('entertainment') || c.contains('fun')) {
+    return Icons.celebration_rounded;
+  }
+  if (c.contains('gift') || c.contains('bonus') || c.contains('present')) {
+    return Icons.card_giftcard_rounded;
+  }
+  if (c.contains('salary') ||
+      c.contains('income') ||
+      c.contains('job') ||
+      c.contains('work') ||
+      c.contains('wage')) {
+    return Icons.account_balance_wallet_rounded;
+  }
+  if (c.contains('freelance') ||
+      c.contains('business') ||
+      c.contains('project')) {
+    return Icons.work_rounded;
+  }
+  if (c.contains('bank') ||
+      c.contains('transfer') ||
+      c.contains('card') ||
+      c.contains('payment')) {
+    return Icons.credit_card_rounded;
+  }
+  if (c.contains('saving') || c.contains('savings') || c.contains('deposit')) {
+    return Icons.savings_rounded;
+  }
+  if (c.contains('investment') || c.contains('stock') || c.contains('crypto')) {
+    return Icons.trending_up_rounded;
+  }
+  if (c.contains('tax')) {
+    return Icons.account_balance_rounded;
+  }
+  if (c.contains('charity') || c.contains('donation')) {
+    return Icons.volunteer_activism_rounded;
+  }
+  if (c.contains('repair') || c.contains('maintenance') || c.contains('tool')) {
+    return Icons.build_rounded;
+  }
+  if (c.contains('office') ||
+      c.contains('stationery') ||
+      c.contains('supplies')) {
+    return Icons.inventory_2_rounded;
+  }
+  if (c.contains('subscription') ||
+      c.contains('netflix') ||
+      c.contains('youtube')) {
+    return Icons.subscriptions_rounded;
+  }
+  if (c.contains('security') || c.contains('insurance')) {
+    return Icons.shield_rounded;
+  }
+  return Icons.category_rounded;
+}
+
+class InfoCard extends StatelessWidget {
+  const InfoCard({
     required this.text,
+    super.key,
   });
 
   final String text;
@@ -1143,8 +1133,8 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-class _EmptyReportsView extends StatelessWidget {
-  const _EmptyReportsView();
+class EmptyReportsView extends StatelessWidget {
+  const EmptyReportsView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1175,6 +1165,49 @@ class _EmptyReportsView extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RangeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _RangeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = Theme.of(context).extension<AppColors>()!;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final bg = selected
+        ? appColors.success.withValues(alpha: 0.18)
+        : appColors.surfaceAlt;
+    final fg = selected
+        ? appColors.success
+        : colorScheme.onSurface.withValues(alpha: 0.8);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: fg,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
         ),
       ),
     );

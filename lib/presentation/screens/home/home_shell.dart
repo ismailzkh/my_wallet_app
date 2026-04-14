@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_utils.dart';
 import '../../../domain/entities/app_entities.dart';
 import '../../controllers/app_controllers.dart';
+import '../transactions/add_transaction_screen.dart';
 
 class HomeShell extends StatelessWidget {
   const HomeShell({
@@ -113,7 +114,22 @@ class HomeShell extends StatelessWidget {
                   ...transactions.take(6).map(
                         (t) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _TransactionTile(transaction: t),
+                          child: _TransactionTile(
+                            transaction: t,
+                            onDelete: () {
+                              transactionsController.deleteTransaction(t.id);
+                            },
+                            onEdit: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => AddTransactionScreen(
+                                    controller: transactionsController,
+                                    existing: t,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
               ],
@@ -311,12 +327,14 @@ class _ThisMonthBarChart extends StatelessWidget {
             Row(
               children: [
                 _ChartLegendDot(
-                  color: colors.success,
+                  color: colors.success
+                      .withValues(alpha: 0.80), // was colors.success
                   label: 'Positive',
                 ),
                 const SizedBox(width: 14),
                 _ChartLegendDot(
-                  color: colors.danger,
+                  color: colors.danger
+                      .withValues(alpha: 0.80), // was colors.danger
                   label: 'Negative',
                 ),
               ],
@@ -406,8 +424,13 @@ class _ThisMonthBarChart extends StatelessWidget {
                             return const SizedBox.shrink();
                           }
 
-                          final shouldShow =
-                              day == 1 || day == 5 ||day == 10 || day == 15 || day == 20 ||day == 25 || day == daysInMonth;
+                          final shouldShow = day == 1 ||
+                              day == 5 ||
+                              day == 10 ||
+                              day == 15 ||
+                              day == 20 ||
+                              day == 25 ||
+                              day == daysInMonth;
 
                           if (!shouldShow) {
                             return const SizedBox.shrink();
@@ -437,7 +460,9 @@ class _ThisMonthBarChart extends StatelessWidget {
                         BarChartRodData(
                           toY: value,
                           width: 8,
-                          color: isPositive ? colors.success : colors.danger,
+                          color: isPositive
+                              ? colors.success.withValues(alpha: 0.80)
+                              : colors.danger.withValues(alpha: 0.80),
                           borderRadius: BorderRadius.circular(99),
                         ),
                       ],
@@ -513,7 +538,7 @@ class _SummaryItem extends StatelessWidget {
         Text(
           CurrencyUtils.format(value),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: color,
+                color: color.withValues(alpha: 0.88),
                 fontWeight: FontWeight.w700,
               ),
         ),
@@ -640,7 +665,10 @@ class _MiniStatCard extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               CurrencyUtils.format(value),
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: color.withValues(alpha: 0.88),
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
           ],
         ),
@@ -650,54 +678,103 @@ class _MiniStatCard extends StatelessWidget {
 }
 
 // ================= TRANSACTION TILE =================
-
 class _TransactionTile extends StatelessWidget {
-  const _TransactionTile({required this.transaction});
+  const _TransactionTile({
+    required this.transaction,
+    this.onDelete,
+    this.onEdit,
+  });
 
   final TransactionEntity transaction;
+  final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<AppColors>()!;
     final isIncome = transaction.type == TransactionTypeEntity.income;
 
-    return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: colors.surfaceAlt,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(
-            isIncome ? Icons.south_west_rounded : Icons.north_east_rounded,
-            color: isIncome ? colors.success : colors.danger,
-            size: 18,
-          ),
+    return Dismissible(
+      key: ValueKey(transaction.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: colors.danger.withValues(alpha: 0.18),
+        child: Icon(
+          Icons.delete_outline_rounded,
+          color: colors.danger,
         ),
-        title: Text(
-          transaction.title,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        subtitle: Text(
-          '${transaction.category} • ${_formatDateTime(transaction.date)}',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        trailing: Text(
-          '${isIncome ? '+' : '-'}${CurrencyUtils.format(transaction.amount.abs())}',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: isIncome ? colors.success : colors.danger,
-                fontWeight: FontWeight.w700,
+      ),
+      confirmDismiss: (direction) async {
+        if (onDelete == null) return false;
+
+        final result = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete transaction?'),
+            content: const Text('This action cannot be undone.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
               ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        );
+
+        if (result == true) {
+          onDelete!();
+          return true;
+        }
+        return false;
+      },
+      child: Card(
+        child: ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          leading: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: colors.surfaceAlt,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              isIncome ? Icons.south_west_rounded : Icons.north_east_rounded,
+              color: isIncome
+                  ? colors.success.withValues(alpha: 0.88)
+                  : colors.danger.withValues(alpha: 0.88),
+              size: 18,
+            ),
+          ),
+          title: Text(
+            transaction.title,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          subtitle: Text(
+            '${transaction.category} • ${_formatDateTime(transaction.date)}',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          trailing: Text(
+            '${isIncome ? '+' : '-'}${CurrencyUtils.format(transaction.amount.abs())}',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: isIncome
+                      ? colors.success.withValues(alpha: 0.88)
+                      : colors.danger.withValues(alpha: 0.88),
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          onTap: onEdit,
         ),
       ),
     );
   }
 }
-
-// ================= EMPTY =================
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();

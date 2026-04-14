@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/app_entities.dart';
 import '../../controllers/app_controllers.dart';
 import '../../../core/utils/currency_utils.dart';
+import '../transactions/add_transaction_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({
@@ -35,9 +36,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               t.category.toLowerCase().contains(_search);
           final matchesType = switch (_filterType) {
             TransactionTypeEntity.income =>
-                t.type == TransactionTypeEntity.income,
+              t.type == TransactionTypeEntity.income,
             TransactionTypeEntity.expense =>
-                t.type == TransactionTypeEntity.expense,
+              t.type == TransactionTypeEntity.expense,
             _ => true,
           };
           return matchesSearch && matchesType;
@@ -93,8 +94,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           onAddTransaction: widget.onAddTransaction,
                         )
                       : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                           itemCount: filtered.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 10),
@@ -103,11 +103,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             return _TransactionCard(
                               transaction: transaction,
                               onDelete: () async {
-                                final confirmed =
-                                    await _confirmDelete(context);
+                                final confirmed = await _confirmDelete(context);
                                 if (confirmed != true) return;
                                 await widget.controller
                                     .deleteTransaction(transaction.id);
+                              },
+                              onEdit: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => AddTransactionScreen(
+                                      controller: widget.controller,
+                                      existing: transaction,
+                                    ),
+                                  ),
+                                );
                               },
                             );
                           },
@@ -191,127 +200,92 @@ class _TransactionCard extends StatelessWidget {
   const _TransactionCard({
     required this.transaction,
     required this.onDelete,
+    this.onEdit,
   });
 
   final TransactionEntity transaction;
   final VoidCallback onDelete;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
-    final appColors = Theme.of(context).extension<AppColors>()!;
+    final colors = Theme.of(context).extension<AppColors>()!;
     final isIncome = transaction.type == TransactionTypeEntity.income;
-    final amountColor = isIncome ? appColors.success : appColors.danger;
-    final sign = isIncome ? '+' : '-';
-
-    final formattedAmount = CurrencyUtils.format(transaction.amount);
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: appColors.surfaceAlt,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                isIncome
-                    ? Icons.south_west_rounded
-                    : Icons.north_east_rounded,
-                color: amountColor,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          transaction.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ),
-                      if (transaction.isRecurring) ...[
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.repeat_rounded,
-                          size: 16,
-                          color: appColors.textSecondary,
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    transaction.category,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _formatDate(transaction.date),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _formatTime(transaction.date),
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: appColors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '$sign$formattedAmount',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: amountColor,
-                        fontWeight: FontWeight.w700,
-                      ),
+      child: InkWell(
+        onTap: onEdit,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: colors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(height: 10),
-                IconButton(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  color: appColors.danger,
-                  tooltip: 'Delete',
+                child: Icon(
+                  isIncome
+                      ? Icons.south_west_rounded
+                      : Icons.north_east_rounded,
+                  color: isIncome
+                      ? colors.success.withValues(alpha: 0.88)
+                      : colors.danger.withValues(alpha: 0.88),
+                  size: 18,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      transaction.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${transaction.category} • ${_formatDateTime(transaction.date)}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${isIncome ? '+' : '-'}${CurrencyUtils.format(transaction.amount.abs())}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: isIncome
+                          ? colors.success.withValues(alpha: 0.88)
+                          : colors.danger.withValues(alpha: 0.88),
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded),
+                color: colors.danger,
+                onPressed: onDelete,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-
-  String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final year = date.year.toString();
-    return '$day/$month/$year';
-  }
-
-  String _formatTime(DateTime date) {
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
 }
+
+// helper to format date + time (same as in HomeShell)
+String _formatDateTime(DateTime date) {
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final year = date.year.toString();
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$day/$month/$year  $hour:$minute';
+}
+
 class _EmptyTransactionsView extends StatelessWidget {
   const _EmptyTransactionsView({
     required this.onAddTransaction,

@@ -5,14 +5,15 @@ import '../../../domain/entities/app_entities.dart';
 import '../../controllers/app_controllers.dart';
 import '../../../core/utils/currency_utils.dart';
 
-
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({
     super.key,
     required this.controller,
+    this.existing,
   });
 
   final TransactionsController controller;
+  final TransactionEntity? existing;
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -33,6 +34,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   bool _isRecurring = false;
   RecurringIntervalEntity? _recurringInterval;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    if (existing != null) {
+      _titleController.text = existing.title;
+      _amountController.text = existing.amount.abs().toString();
+      _categoryController.text = existing.category;
+      _noteController.text = existing.note;
+
+      _selectedType = existing.type;
+      _selectedDate = existing.date;
+      _isRecurring = existing.isRecurring;
+      _recurringInterval = existing.recurringInterval;
+
+      _selectedCategoryIcon =
+          _CategoryIconHelper.iconForCategory(existing.category);
+    }
+  }
 
   @override
   void dispose() {
@@ -89,18 +110,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     if (pickedDate != null) {
       setState(() {
-        // Keep the chosen day, but reset time to now when saving.
         _selectedDate = pickedDate;
       });
     }
   }
 
-  Future<void> _saveTransaction() async {
-    FocusScope.of(context).unfocus();
+Future<void> _saveTransaction() async {
+  FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    final amount = double.tryParse(_amountController.text.trim());
+  final amount = double.tryParse(_amountController.text.trim());
+
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter a valid amount')),
@@ -112,7 +133,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _isSaving = true;
     });
 
-    // Merge picked date (year/month/day) with current time (hour/minute/second).
     final now = DateTime.now();
     final dateWithCurrentTime = DateTime(
       _selectedDate.year,
@@ -124,7 +144,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
 
     final transaction = TransactionEntity(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: widget.existing == null
+          ? DateTime.now().millisecondsSinceEpoch.toString()
+          : widget.existing!.id,
       title: _titleController.text.trim(),
       amount: amount,
       type: _selectedType,
@@ -136,8 +158,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       isRecurring: _isRecurring && _recurringInterval != null,
       recurringInterval: _isRecurring ? _recurringInterval : null,
     );
-
-    await widget.controller.addTransaction(transaction);
+    if (widget.existing == null) {
+      await widget.controller.addTransaction(transaction);
+    } else {
+      await widget.controller.updateTransaction(transaction);
+    }
 
     if (!mounted) return;
 
@@ -238,7 +263,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Add Transaction'),
+          title: Text(
+            widget.existing == null ? 'Add Transaction' : 'Edit Transaction',
+          ),
         ),
         body: SafeArea(
           child: SingleChildScrollView(
@@ -275,7 +302,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           decoration: InputDecoration(
                             labelText: 'Amount',
                             hintText: '0.00',
-                            prefixIcon: const Icon(Icons.currency_exchange_rounded),
+                            prefixIcon: const Icon(
+                              Icons.currency_exchange_rounded,
+                            ),
                             prefixText: CurrencyUtils.symbol,
                           ),
                           validator: (value) {
@@ -350,7 +379,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             setState(() {
                               _selectedCategoryIcon =
                                   _CategoryIconHelper.iconForCategory(
-                                      value.trim());
+                                value.trim(),
+                              );
                             });
                           },
                         ),
@@ -423,7 +453,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Repeat'),
                           subtitle: const Text(
-                              'Create this transaction automatically'),
+                            'Create this transaction automatically',
+                          ),
                           value: _isRecurring,
                           onChanged: (value) {
                             setState(() {
@@ -490,7 +521,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                               Icons.check_rounded,
                               size: 18,
                             ),
-                      label: Text(_isSaving ? 'Saving...' : 'Save Transaction'),
+                      label: Text(
+                        _isSaving
+                            ? 'Saving...'
+                            : (widget.existing == null
+                                ? 'Save Transaction'
+                                : 'Update Transaction'),
+                      ),
                     ),
                   ),
                 ],
